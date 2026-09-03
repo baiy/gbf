@@ -1,0 +1,13 @@
+services:
+  rabbitmq:
+    image: heidiks/rabbitmq-delayed-message-exchange:3.13.3-management
+    # 仅支持 Linux
+    # image: crpi-y7yb6r1qvgglqwvq.cn-hangzhou.personal.cr.aliyuncs.com/baiy-mirror/rabbitmq:3.13.3-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    # volumes:
+    # - /local/data/rabbitmq:/var/lib/rabbitmq
