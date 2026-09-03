@@ -38,6 +38,9 @@ type Option struct {
 	session bool
 	// session 存储
 	sessionStore func() sessions.Store
+
+	// 是否启用
+	accessLog bool
 }
 
 func WithPort(port uint) util.WithOption[Option] {
@@ -107,5 +110,11 @@ func WithBaseUrl(path string) util.WithOption[Option] {
 func WithTemplateFunc(value funcs.FuncMap) util.WithOption[Option] {
 	return func(o *Option) {
 		o.templateFunc = value
+	}
+}
+
+func WithAccessLog() util.WithOption[Option] {
+	return func(o *Option) {
+		o.accessLog = true
 	}
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/baiy/gbf/closer"
 	"github.com/baiy/gbf/constant"
+	"github.com/baiy/gbf/env"
 	"github.com/baiy/gbf/log"
 	"github.com/baiy/gbf/manager"
 	"github.com/baiy/gbf/util/cryptor"
@@ -38,8 +39,10 @@ func create(mo manager.Option[Option]) (*Web, error) {
 	w.echo.Use(middleware.Recover())
 	// 跟踪id
 	w.echo.Use(TrackId())
-	// 请求日志
-	w.echo.Use(middleware.RequestLogger())
+	if w.option.accessLog {
+		// 请求日志
+		w.echo.Use(middleware.RequestLogger())
+	}
 	// session
 	if w.option.session {
 		w.echo.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -115,6 +118,9 @@ var Manager = manager.New(
 
 			templateVars: map[string]any{},
 			templateFunc: map[string]any{},
+
+			// 开发环境默认开启访问日志
+			accessLog: env.IsLocal(),
 		}
 	},
 )
