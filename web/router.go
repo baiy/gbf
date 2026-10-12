@@ -88,12 +88,12 @@ func (r *Router[H]) Group(prefix string, middleware ...MiddlewareFunc) *Group[H]
 	return newGroup(r.web.echo.Group(prefix, middlewaresToEcho(r.injectGlobalMiddleware(middleware))...), r)
 }
 
-func (r *Router[H]) Static(pathPrefix, fsRoot string, middleware ...MiddlewareFunc) RouteInfo {
-	return r.web.echo.Static(pathPrefix, fsRoot, r.staticMiddleware(middleware)...)
+func (r *Router[H]) Static(pathPrefix, fsRoot string, browserCacheDays uint, middleware ...MiddlewareFunc) RouteInfo {
+	return r.web.echo.Static(pathPrefix, fsRoot, r.staticMiddleware(browserCacheDays, middleware)...)
 }
 
-func (r *Router[H]) StaticFS(pathPrefix string, filesystem fs.FS, middleware ...MiddlewareFunc) RouteInfo {
-	return r.web.echo.StaticFS(pathPrefix, filesystem, r.staticMiddleware(middleware)...)
+func (r *Router[H]) StaticFS(pathPrefix string, filesystem fs.FS, browserCacheDays uint, middleware ...MiddlewareFunc) RouteInfo {
+	return r.web.echo.StaticFS(pathPrefix, filesystem, r.staticMiddleware(browserCacheDays, middleware)...)
 }
 
 // StaticEmbed 静态资源服务
@@ -102,6 +102,7 @@ func (r *Router[H]) StaticEmbed(
 	efs embed.FS,
 	efsPath string,
 	devAbsPath string,
+	browserCacheDays uint,
 	middleware ...MiddlewareFunc,
 ) RouteInfo {
 	// 本地环境可使用本地目录(绝对路径) 方便动态修改文件调试
@@ -109,50 +110,48 @@ func (r *Router[H]) StaticEmbed(
 		if filepath.IsAbs(devAbsPath) {
 			info, err := os.Stat(devAbsPath)
 			if err == nil && info.IsDir() {
-				return r.Static(pathPrefix, devAbsPath, middleware...)
+				return r.Static(pathPrefix, devAbsPath, browserCacheDays, middleware...)
 			}
 			r.web.Logger.Errorf("StaticEmbed path error: %s", err)
 		}
 	}
-	return r.StaticFS(pathPrefix, echo.MustSubFS(efs, efsPath), middleware...)
+	return r.StaticFS(pathPrefix, echo.MustSubFS(efs, efsPath), browserCacheDays, middleware...)
 }
 
-func (r *Router[H]) File(path, file string, middleware ...MiddlewareFunc) RouteInfo {
-	return r.web.echo.File(path, file, r.staticMiddleware(middleware)...)
+func (r *Router[H]) File(path, file string, browserCacheDays uint, middleware ...MiddlewareFunc) RouteInfo {
+	return r.web.echo.File(path, file, r.staticMiddleware(browserCacheDays, middleware)...)
 }
 
-func (r *Router[H]) FileFS(path, file string, filesystem fs.FS, middleware ...MiddlewareFunc) RouteInfo {
-	return r.web.echo.FileFS(path, file, filesystem, r.staticMiddleware(middleware)...)
+func (r *Router[H]) FileFS(path, file string, filesystem fs.FS, browserCacheDays uint, middleware ...MiddlewareFunc) RouteInfo {
+	return r.web.echo.FileFS(path, file, filesystem, r.staticMiddleware(browserCacheDays, middleware)...)
 }
 
 // FileEmbed 静态资源服务(单一文件)
-func (r *Router[H]) FileEmbed(path, file string, efs embed.FS, efsPath string, devAbsPath string, middleware ...MiddlewareFunc) RouteInfo {
+func (r *Router[H]) FileEmbed(path, file string, efs embed.FS, efsPath string, devAbsPath string, browserCacheDays uint, middleware ...MiddlewareFunc) RouteInfo {
 	// 本地环境可使用本地目录(绝对路径) 方便动态修改文件调试
 	if devAbsPath != "" && env.IsLocal() {
 		if filepath.IsAbs(devAbsPath) {
 			info, err := os.Stat(devAbsPath)
 			if err == nil && info.IsDir() {
-				return r.File(path, devAbsPath+"/"+file, middleware...)
+				return r.File(path, devAbsPath+"/"+file, browserCacheDays, middleware...)
 			}
 			r.web.Logger.Errorf("FileEmbed path error: %s", err)
 		}
 	}
-	return r.FileFS(path, file, echo.MustSubFS(efs, efsPath), middleware...)
-}
-
-// 静态资源浏览器缓存
-func staticBrowserCache(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c *echo.Context) error {
-		c.Response().Header().Set(echo.HeaderCacheControl, fmt.Sprintf("public, max-age=%d", 86400*31))
-		return next(c)
-	}
+	return r.FileFS(path, file, echo.MustSubFS(efs, efsPath), browserCacheDays, middleware...)
 }
 
 // 静态文件中间件
-func (r *Router[H]) staticMiddleware(middlewares []MiddlewareFunc) []echo.MiddlewareFunc {
-	if env.IsProd() {
+func (r *Router[H]) staticMiddleware(browserCacheDays uint, middlewares []MiddlewareFunc) []echo.MiddlewareFunc {
+	if env.IsProd() && browserCacheDays > 0 {
 		// 生产环境启用静态文件浏览器缓存
-		return append(middlewaresToEcho(r.injectGlobalMiddleware(middlewares)), staticBrowserCache)
+		return append(middlewaresToEcho(r.injectGlobalMiddleware(middlewares)), func(next echo.HandlerFunc) echo.HandlerFunc {
+			return func(c *echo.Context) error {
+				// 浏览器缓存
+				c.Response().Header().Set(echo.HeaderCacheControl, fmt.Sprintf("public, max-age=%d", 86400*browserCacheDays))
+				return next(c)
+			}
+		})
 	}
 	return middlewaresToEcho(r.injectGlobalMiddleware(middlewares))
 }
