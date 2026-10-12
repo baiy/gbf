@@ -123,6 +123,7 @@ func httpErrorHandler() echo.HTTPErrorHandler {
 	}
 }
 
+// Cors 跨域中间件
 func Cors(options ...util.WithOption[CorsOption]) MiddlewareFunc {
 	option := &CorsOption{
 		allowOrigins:     []string{"*"},
@@ -144,6 +145,16 @@ func Cors(options ...util.WithOption[CorsOption]) MiddlewareFunc {
 		}, option.allowHeaders...),
 		ExposeHeaders: append([]string{echo.HeaderXRequestID}, option.exposeHeaders...),
 	}))
+}
+
+// 浏览器缓存中间件
+func BrowserCache(days uint) MiddlewareFunc {
+	return func(next HandlerFunc) HandlerFunc {
+		return func(c *Context) error {
+			c.Response.Header().Set(echo.HeaderCacheControl, fmt.Sprintf("public, max-age=%d", 86400*days))
+			return next(c)
+		}
+	}
 }
 
 type CorsOption struct {
