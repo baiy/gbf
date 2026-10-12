@@ -13,7 +13,7 @@ type Project struct {
 // ```yaml
 // # 项目名称
 // name: app
-// # 项目版本
+// # 项目版本 如果是日期的话为: yy.m.d[.x]
 // version: 0.0.0
 // ```
 func ParseProjectFile(yamlContent string) Project {
